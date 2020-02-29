@@ -1,0 +1,3 @@
+rootProject.name = 'bonade-vms'
+include 'bonade-visitor-service'
+include 'bonade-visitor-domain'

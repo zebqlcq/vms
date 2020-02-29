@@ -1,0 +1,66 @@
+plugins {
+    id 'org.springframework.boot' version '2.2.2.RELEASE'
+    id "com.google.cloud.tools.jib" version "2.0.0"
+}
+
+description '访客管理服务'
+def artifactId = 'bonade-visitor-service'
+
+test {
+    useJUnitPlatform()
+}
+
+jib {
+    from {
+        image = '192.168.12.150:8086/library/openjdk:8'
+    }
+    to {
+        image = "192.168.12.150:8086/library/$artifactId"
+        auth {
+            username = 'robot$publisher'
+            password = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODUxMDQ2ODEsImlhdCI6MTU4MjUxMjY4MSwiaXNzIjoiaGFyYm9yLXRva2VuLWRlZmF1bHRJc3N1ZXIiLCJpZCI6MSwicGlkIjoxLCJhY2Nlc3MiOlt7IlJlc291cmNlIjoiL3Byb2plY3QvMS9yZXBvc2l0b3J5IiwiQWN0aW9uIjoicHVzaCIsIkVmZmVjdCI6IiJ9XX0.iWyVSvv3LIrz2fe4SrxCerdENF6QFfEiQAomkJzdZr8-qjAJuNdrGMOh42w_guZJ2qdZMIHs_CSOQjHcRWu5Wh840_Y-rLhQzSLtbGk8Qj9d2B4QRG6QXvKGYotvwaOSgCeUV6XVO2twSpLnv26GlQYvtnsGc6dVgq-1SFJGwaVXiE9KhQyfRTDZ6VnrvMtb92uev4UKoptkrY89Ig5HG00L1zWlUQa_zf7TUoPOav5JT_sfZZdB6U3qJLOuGaAAO9XX-igWehSEnLBv0z_q-iTq_GwdifSNSqUFosYiNPVwDCymhKMBejvLQNoxqg3Gh2tQIsnLDvxOb8vTXfSNMhWPsFB6g6lJMJpa6HPHPzwxc9Xxvj6PhIDTVeWE6d8_nQvyPmBpmj9ag1QFgjsvA-nynxZ6Sdur8S_GWxNt44p85sTqZUtZ2q-Wz-edtXMnsC3bSlazMsUwUo9_HHX1IELjlL80_Hk4YLrOmaNYCdYuh3xPmkRgzX9sgUsCDSYDUAHH5QhrjxOrVpNIIgHCn2795ZE5d7gPwKhFTcjpL718gfcjKSM1HkHZ7JbIcE8r4D22TtO-syKfraSiEJYyIKIV0pLzQU_CGyQ5jSgG7oGTqKOBH5-1J7D45yaedD7KI6CuDJyLMPcKsPL23PeduqwHwx4oxIriS-w2iQl1i5A'
+        }
+        tags = [version]
+        credHelper = 'osxkeychain'
+    }
+    container {
+        jvmFlags = ['-Djava.security.egd=file:/dev/./urandom', '-Duser.timezone=GMT+08', '-Dfile.encoding=UTF-8']
+        mainClass = 'com.bonade.visitor.VisitorApplication'
+        ports = ['8080']
+    }
+    allowInsecureRegistries = true
+}
+
+bootJar {
+    archiveBaseName.set("$artifactId")
+    archiveVersion.set("$project.version")
+}
+
+dependencies {
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: junitJupiterVersion
+    testRuntime group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junitJupiterVersion
+    testImplementation(group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: springBootVersion) {
+        exclude(module: 'commons-logging')
+        exclude(module: 'junit')
+    }
+
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-aop', version: springBootVersion
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-redis', version: springBootVersion
+    implementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-zipkin', version: springCloudVersion
+    implementation group: 'org.mathcat', name: 'spin-cloud-job-starter-executor', version: jobExecutorVersion
+    implementation group: 'com.github.ulisesbocchio', name: 'jasypt-spring-boot-starter', version: jasyptVersion
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: springBootVersion
+
+    implementation group: 'org.springframework', name: 'spring-jdbc', version: springVersion
+
+    implementation group: 'org.apache.commons', name: 'commons-pool2', version: commonsPoolVersion
+    implementation group: 'org.apache.poi', name: 'poi-excelant', version: poiVersion
+    implementation group: 'org.apache.poi', name: 'poi-scratchpad', version: poiVersion
+    implementation group: 'com.google.zxing', name: 'core', version: zxingVersion
+
+    implementation group: 'com.zaxxer', name: 'HikariCP', version: hikariVersion
+    implementation group: 'mysql', name: 'mysql-connector-java', version: mysqlVersion
+
+    implementation project(':bonade-visitor-domain')
+}

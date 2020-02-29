@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.GardenAreaMapper">
+    <delete id="delEnt">
+        UPDATE vms_garden_area t
+        SET t.enterprise_id = NULL,
+         t.enterprise_name = NULL,
+         t.area_tel = NULL,
+         t.area_user_id = NULL,
+         t.update_username = #{map.username},
+         t.update_time = NOW()
+        WHERE t.id = #{map.id}
+    </delete>
+
+    <select id="getPage" resultType="com.bonade.visitor.domain.vo.GardenAreaOutVo">
+        SELECT
+            t.id,
+            t.create_username createUsername,
+            t.`name`,
+            t.parent_id parentId,
+            t.enterprise_id enterpriseId,
+            t.user_name userName,
+            t.user_id userId,
+            t.tel,
+            t.area_location areaLocation
+        FROM
+            vms_garden_area t
+        WHERE
+            t.valid = 1
+        <if test="vo.parentId != null">
+        AND t.parent_id = #{vo.parentId}
+        </if>
+        <if test="vo.id != null">
+            AND t.id_path like  CONCAT('%', #{vo.id}, '%')
+        </if>
+        <if test="vo.enterpriseId != null">
+        AND t.enterprise_id = #{vo.enterpriseId}
+        </if>
+        <if test="vo.gardenAreaType != null">
+            AND t.`graden_area_type` = #{vo.gardenAreaType}
+        </if>
+        <if test="vo.searchKey != null">
+            AND (t.`name` like CONCAT('%', #{vo.searchKey}, '%')
+                OR t.enterprise_name like CONCAT('%', #{vo.searchKey}, '%'))
+        </if>
+        ORDER BY t.create_time DESC
+    </select>
+
+    <select id="getList" resultType="com.bonade.visitor.domain.vo.GardenAreaOutVo">
+        SELECT
+            t.*
+        FROM
+            vms_garden_area t
+        WHERE
+            t.enterprise_id IS NULL
+        AND t.id_path LIKE CONCAT('%', #{id}, '%')
+        AND (
+            SELECT
+                COUNT(1)
+            FROM
+                vms_garden_area a
+            WHERE
+                a.id_path LIKE CONCAT('%', t.id, '%')
+        ) = 1
+    </select>
+
+
+</mapper>

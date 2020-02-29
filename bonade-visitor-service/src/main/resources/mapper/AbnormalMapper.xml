@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.AbnormalMapper">
+
+    <select id="getPage" resultType="com.bonade.visitor.domain.vo.AbnormalOutVo">
+        SELECT
+            v.id visitorId,
+            t.id abnormalId,
+            v.`name`,
+            v.company_name companyName,
+            v.user_station userStation,
+            v.tel,
+            v.cart_no cartNo,
+            v.visitor_attribute visitorAttribute,
+            v.face_img faceImg,
+        (SELECT b.operation_time FROM vms_visit_record_behavior_trace b WHERE b.id = t.record_id AND b.visit_status = 7 ORDER BY b.create_time ASC LIMIT 1) inTime,
+        (SELECT b.operation_time FROM vms_visit_record_behavior_trace b WHERE b.id = t.record_id AND b.visit_status = 8 ORDER BY b.create_time DESC LIMIT 1) outTime
+        FROM
+            vms_abnormal t left join vms_visitor v on t.visitor_id = v.id
+        WHERE t.valid = 1
+        <if test="vo.enterpriseId != null ">
+        AND t.enterprise_id = #{vo.enterpriseId}
+        </if>
+        <if test="vo.gardenId != null ">
+            AND t.enterprise_id in (SELECT a.enterprise_id FROM vms_garden_area a WHERE a.id_path LIKE CONCAT('%',#{vo.gardenId},'%'))
+        </if>
+        <if test="vo.name != null and vo.name !='' ">
+            AND v.`name` like CONCAT('%', #{vo.name}, '%')
+        </if>
+    </select>
+
+    <select id="getRecordPage" resultType="com.bonade.visitor.domain.vo.AbnormalRecordOutVo">
+        SELECT
+            t.id,
+            (
+                SELECT
+                    a.`name`
+                FROM
+                    vms_garden_area a
+                WHERE
+                    a.id = SUBSTRING_INDEX(t.area_ids, ',', 1)
+            ) areaName,
+            t.registration,
+            t.internal_staff_user_name internalStaffUserName,
+            t.visit_cause visitCause,
+            t.appointment_start_time appointmentStartTime,
+            (
+                SELECT
+                    b.operation_time
+                FROM
+                    vms_visit_record_behavior_trace b
+                WHERE
+                    b.id = t.id
+                AND b.valid = 1
+                AND b.visit_status = 7
+                ORDER BY
+                    b.create_time ASC
+                LIMIT 1
+            ) inTime,
+            (
+                SELECT
+                    b.operation_time
+                FROM
+                    vms_visit_record_behavior_trace b
+                WHERE
+                    b.id = t.id
+                AND b.valid = 1
+                AND b.visit_status = 8
+                ORDER BY
+                    b.create_time DESC
+                LIMIT 1
+            ) outTime,
+            d.state,
+            (
+                SELECT
+                    COUNT(1)
+                FROM
+                    vms_abnormal ab
+                WHERE
+                    ab.valid = 1
+                AND ab.visitor_id = t.visitor_id
+            ) isAbnormal,
+            d.user_name approvalName
+        FROM
+            vms_visit_record t
+        LEFT JOIN vms_approval a ON a.visit_record_id = t.id
+        AND a.valid = 1
+        LEFT JOIN vms_approval_detail d ON a.id = d.approval_id
+        AND d.valid = 1
+        LEFT JOIN vms_visitor v ON t.visitor_id = v.id
+        AND v.valid = 1
+        WHERE
+            t.valid = 1
+        <if test="vo.recordId != null">
+            AND t.id = #{vo.recordId}
+        </if>
+        <if test="vo.enterpriseId != null">
+            AND t.enterprise_id = #{vo.enterpriseId}
+        </if>
+        <if test="vo.name != null and vo.name !='' ">
+            AND v.`name` like CONCAT('%', #{vo.name}, '%')
+        </if>
+        <if test="vo.tel != null and vo.tel !='' ">
+            AND v.tel = #{vo.tel}
+        </if>
+        <if test="vo.visitId != null">
+            AND v.id = #{vo.visitId}
+        </if>
+    </select>
+
+
+</mapper>

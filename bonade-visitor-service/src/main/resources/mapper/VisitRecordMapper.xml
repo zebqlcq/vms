@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.VisitRecordMapper">
+
+    <select id = "visitorCodeList" resultType="com.bonade.visitor.domain.entity.Visitor">
+    	SELECT 
+    		a.enterprise_id AS enterpriseId, 
+    		a.name AS name,
+    		a.tel AS tel,
+    		a.visitor_attribute AS visitorAttribute,
+    		case
+    			when a.visitor_attribute = 1 then '普通访客'
+    			when a.visitor_attribute = 2 then '贵宾访客'
+    		end AS visitorAttributeName
+    	from (
+			SELECT
+				(select (SELECT ELT(INTERVAL (CONV (HEX (CONVERT (LEFT(t.name,1)USING GBK)),16, 10),0xB0A1,0xB0C5,0xB2C1,0xB4EE,0xB6EA,0xB7A2,0xB8C1,0xB9FE,0xBBF7,0xBFA6,0xC0AC,0xC2E8,0xC4C3,0xC5B6,0xC5BE,0xC6DA,0xC8BB,0xC8F6,0xCBFA,0xCDDA ,0xCEF4,0xD1B9,0xD4D1),
+				'A','B','C','D','E','F','G','H','J','K','L','M','N','O','P','Q','R','S','T','W','X','Y','Z') FROM DUAL)) AS fistCode,
+				t.*
+			FROM
+				vms_visitor AS t
+			WHERE 
+				t.valid = 1
+				AND t.enterprise_id = #{enterpriseId}
+				AND t.visitor_attribute != 3
+			ORDER BY name ASC
+		) a
+		WHERE
+			a.fistCode = #{fistCode}
+    </select>
+    <select id = "visitRecordForGuard" resultType="com.bonade.visitor.domain.dto.VisitRecordForGuardDto">
+    	SELECT
+			c.`name` AS visitorName,
+			c.visitor_attribute visitorAttribute,
+			"" AS visitorAttributeName,
+			b.internal_staff_user_name AS internalStaffUserName,
+			IFNULL(DATE_FORMAT(b.appointment_start_time,'%Y-%m-%d %H:%i'),'--') AS appointmentStartTime,
+			IFNULL(DATE_FORMAT(b.appointment_end_time,'%Y-%m-%d %H:%i'),'--') AS appointmentEndTime,
+			b.enterprise_name AS enterpriseName,
+			IFNULL(DATE_FORMAT(a.create_time,'%Y-%m-%d %H:%i'),'--') AS createTime,
+			b.id AS visitRecordId,
+			a.originator_name AS originatorName,
+			a.originator_enterprise_name AS originatorEnterpriseName,
+			c.face_img AS faceImg
+		FROM
+			vms_visit_record_gate_sentry a
+		LEFT JOIN vms_visit_record b ON b.id = a.record_id
+		LEFT JOIN vms_visitor c ON c.id = b.visitor_id
+		WHERE a.valid = 1
+			AND a.record_id NOT IN (
+				SELECT t.visit_record_id FROM vms_visit_authentication t WHERE t.guard_user_id = #{vo.guardUserId}
+			)
+			<if test="vo.name !=null and vo.name != ''">
+				AND (c.name like concat('%',#{vo.name},'%') or a.originator_name like concat('%',#{vo.name},'%') or b.enterprise_name like concat('%',#{vo.name},'%'))
+			</if>
+			AND b.enterprise_id = #{vo.enterpriseId}
+			AND a.gate_sentry_user_id = #{vo.guardUserId}
+		ORDER BY a.create_time DESC
+    </select>
+    <select id = "visitRecordForGuardHistory" resultType="com.bonade.visitor.domain.dto.VisitRecordForGuardDto">
+    	SELECT
+			c.`name` AS visitorName,
+			c.visitor_attribute visitorAttribute,
+			"" AS visitorAttributeName,
+			b.internal_staff_user_name AS internalStaffUserName,
+			IFNULL(DATE_FORMAT(b.appointment_start_time,'%Y-%m-%d %H:%i'),'--') AS appointmentStartTime,
+			IFNULL(DATE_FORMAT(b.appointment_end_time,'%Y-%m-%d %H:%i'),'--') AS appointmentEndTime,
+			b.enterprise_name AS enterpriseName,
+			IFNULL(DATE_FORMAT(a.create_time,'%Y-%m-%d %H:%i'),'--') AS createTime,
+			b.id AS visitRecordId,
+			d.originator_name AS originatorName,
+			d.originator_enterprise_name AS originatorEnterpriseName,
+			c.face_img AS faceImg,
+			a.pass_status AS passStatus,
+			case
+				when a.pass_status = 1 then '同意'
+				when a.pass_status = 2 then '拒绝'
+			end AS passStatusName
+		FROM
+			vms_visit_authentication a
+		LEFT JOIN vms_visit_record b ON a.visit_record_id = b.id
+		LEFT JOIN vms_visitor c ON c.id = b.visitor_id
+		LEFT JOIN vms_visit_record_gate_sentry d ON d.record_id = b.id
+		WHERE
+			a.valid = 1
+			AND a.guard_user_id = #{vo.guardUserId}
+			AND b.enterprise_id = #{vo.enterpriseId}
+			<if test="vo.name !=null and vo.name != ''">
+				AND (c.name like concat('%',#{vo.name},'%') or d.originator_name like concat('%',#{vo.name},'%') or b.enterprise_name like concat('%',#{vo.name},'%'))
+			</if>
+			<if test="vo.passStatus != null and vo.passStatus != 0">
+				AND a.pass_status = #{vo.passStatus}
+			</if>
+			<if test="vo.visitorAttribute != null and vo.visitorAttribute != 0">
+				AND c.visitor_attribute = #{vo.visitorAttribute}
+			</if>
+			<if test="vo.startTime != null and vo.startTime != '' ">
+				AND DATE_FORMAT(b.appointment_start_time,'%Y-%m-%d') <![CDATA[ >= ]]> #{vo.startTime}
+			</if>
+			<if test="vo.endTime != null and vo.endTime != ''  ">
+				AND DATE_FORMAT(b.appointment_start_time,'%Y-%m-%d') <![CDATA[ <= ]]> #{vo.endTime}
+			</if>
+		ORDER BY a.create_time DESC
+    </select>
+
+    <select id="approvalVisitRecord" resultType="com.bonade.visitor.domain.dto.VisitRecordDto">
+       SELECT
+       		DISTINCT
+			a.id AS id,
+			IFNULL(DATE_FORMAT(a.create_time,'%Y-%m-%d %H:%i:%s'),'--') AS createTime,
+			a.visit_cause AS visitCause,
+			"" AS visitCauseName,
+			IFNULL(DATE_FORMAT(a.appointment_start_time,'%Y-%m-%d %H:%i:%s'),'--') AS appointmentStartTime,
+			IFNULL(DATE_FORMAT(a.appointment_end_time,'%Y-%m-%d %H:%i:%s'),'--') AS appointmentEndTime,
+			IFNULL(d.company_name,"-") AS visitorCompany,
+			c.state AS state,
+			"" AS stateName,
+			b.state AS approvalState,
+			"" AS approvalStateName,
+			b.id AS approvalId
+		FROM
+			vms_visit_record a
+		LEFT JOIN vms_approval b ON b.visit_record_id = a.id
+		LEFT JOIN vms_approval_detail c ON c.approval_id = b.id
+		LEFT JOIN vms_visitor d ON d.id = a.visitor_id
+		WHERE
+			a.valid = 1
+		AND c.user_id = #{vo.userId}
+		<if test="vo.enterpriseId != null and vo.enterpriseId != ''">
+			AND a.enterprise_id = #{vo.enterpriseId}
+		</if>
+		<if test="stateList != null and stateList.size() > 0">
+	        AND c.state in
+	        <foreach collection="stateList" index="index" item="item" open="(" separator="," close=")">
+	            #{item}
+	        </foreach>
+	    </if>
+		AND c.type = #{type}
+		<if test="approvalState != null">
+			AND b.state = #{approvalState}
+		</if>
+		order by a.create_time DESC
+    </select>
+
+    <select id= "getVisitRecordDetail" resultType="com.bonade.visitor.domain.dto.VisitRecordDetailDto">
+    	SELECT
+    		a.id AS id,
+			a.internal_staff_user_name AS internalStaffUserName,
+			a.internal_staff_user_tel AS internalStaffUserTel,
+			a.enterprise_name AS enterpriseName,
+			a.internal_staff_user_dept AS internalStaffUserDept,
+			a.internal_staff_user_station AS internalStaffUserStation,
+			a.visit_cause AS visitCause,
+			"" AS visitCauseName,
+			IFNULL(DATE_FORMAT(a.appointment_start_time,'%Y-%m-%d %H:%i:%s'),'--') AS appointmentStartTime,
+			IFNULL(DATE_FORMAT(a.appointment_end_time,'%Y-%m-%d %H:%i:%s'),'--') AS appointmentEndTime,
+			IFNULL(DATE_FORMAT(a.effective_date,'%Y-%m-%d %H:%i:%s'),'--') AS effectiveDate,
+			IFNULL(DATE_FORMAT(a.expiration_date,'%Y-%m-%d %H:%i:%s'),'--') AS expirationDate,
+			a.follow_num AS followNum,
+			a.car_num AS carNum,
+			b.`name` AS visitorName,
+			b.tel AS tel,
+			b.company_name AS companyName,
+			b.dep_name AS deptName,
+			b.user_station AS userStation,
+			b.face_img AS faceImg,
+			b.card_no_positive AS cardNoPositive,
+			IFNULL(DATE_FORMAT(a.create_time,'%Y-%m-%d %H:%i:%s'),'--') AS createTime,
+			a.visit_status AS visitStatus,
+			"" AS visitStatusName,
+			c.id AS approvalId,
+			c.uaac_approval_id AS uaacApprovalId,
+			c.state AS state,
+			"" AS stateName,
+			a.visitor_code AS visitorCode,
+			a.invitation_explain AS invitationExplain,
+			a.address AS address,
+			b.visitor_attribute AS visitorAttribute,
+			"" AS visitorAttributeName
+		FROM
+			vms_visit_record a
+		LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+		LEFT JOIN vms_approval c ON c.visit_record_id = a.id
+		WHERE
+			a.valid = 1
+		AND a.id = #{id}
+    </select>
+
+    <select id= "getApprovalDetailList" resultType="com.bonade.visitor.domain.entity.ApprovalDetail">
+    	SELECT
+			a.state AS state,
+			"" AS stateName,
+			a.user_id AS userId,
+			a.user_name AS userName,
+			a.user_tel AS userTel,
+			a.sort AS sort
+		FROM
+			vms_approval_detail a
+		LEFT JOIN vms_approval b ON a.approval_id = b.id
+		LEFT JOIN vms_visit_record c ON c.id = b.visit_record_id
+		WHERE
+			a.valid = 1
+		AND a.type = #{type}
+		AND c.id = #{visitRecordId}
+		ORDER BY
+			a.sort ASC
+    </select>
+
+    <update id="loginValidate">
+    	UPDATE vms_visit_record
+			SET visit_status = #{visitStatus} ,
+			update_time = now()
+		where valid = 1
+			and visitor_id = #{visitorId}
+			and visit_status in (1,2)
+			and	registration = #{registration}
+    </update>
+
+    <select id="visitRecordHistory" resultType="com.bonade.visitor.domain.dto.VisitRecordDto">
+       SELECT
+			a.id AS id,
+			a.visitor_id AS visitorId,
+			b.`name` AS visitorName,
+			IFNULL(DATE_FORMAT(a.create_time,'%Y-%m-%d %H:%i:%s'),'--') AS createTime,
+			a.visit_cause AS visitCause,
+			"" AS visitCauseName,
+			a.visit_status AS visitStatus,
+			"" AS visitStatusName,
+			IFNULL(DATE_FORMAT(a.appointment_start_time,'%Y-%m-%d %H:%i:%s'),'--') AS appointmentStartTime,
+			IFNULL(DATE_FORMAT(a.appointment_end_time,'%Y-%m-%d %H:%i:%s'),'--') AS appointmentEndTime
+		FROM
+			vms_visit_record a
+		LEFT JOIN vms_visitor b ON b.id = a.visitor_id
+		WHERE
+			a.valid = 1
+		AND a.internal_staff_user_id = #{vo.userId}
+		AND a.registration = 1
+		order by a.create_time DESC
+    </select>
+
+    <!-- *************************************访客数据统计-start****************************** -->
+    <select id="applyStatistics" resultType="com.bonade.visitor.domain.vo.ApplyStatisticsVo" parameterType="map">
+        SELECT SUM(t1.rc) AS rc, SUM(t1.preRc) AS preRc FROM(
+        SELECT
+        IFNULL(SUM(CASE WHEN t.registration=#{param.registration} THEN 1 ELSE 0 END), 0) AS rc,
+        0 AS preRc
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.create_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.create_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        UNION ALL
+        SELECT
+        0 AS rc,
+        IFNULL(SUM(CASE WHEN t.registration=#{param.registration} THEN 1 ELSE 0 END), 0) AS preRc
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.create_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.preEndTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.create_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.preStartTime}, '%Y-%m-%d')
+        )t1
+    </select>
+
+    <select id="applyDetailStatistics" resultType="com.bonade.visitor.domain.vo.VisitArchiveStatisticsDetailVo" parameterType="map">
+        SELECT DATE_FORMAT(t1.create_time, #{param.dataPattern}) AS rq,
+        COUNT(1) AS rc
+        FROM vms_visit_record t1
+        WHERE t1.enterprise_id=#{param.enterpriseId}
+        AND t1.registration=#{param.registration}
+        AND DATE_FORMAT(t1.create_time, '%Y-%m-%d') <![CDATA[>=]]> DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t1.create_time, '%Y-%m-%d') <![CDATA[<=]]> DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        GROUP BY DATE_FORMAT(t1.create_time, #{param.dataPattern})
+    </select>
+
+    <select id="arriveOnStatistics" resultType="com.bonade.visitor.domain.vo.ArriveOnStatisticsVo" parameterType="map">
+        SELECT SUM(t1.rc1) AS rc1, SUM(t1.rc2) AS rc2 FROM(
+        SELECT
+        IFNULL(SUM(CASE WHEN t.registration=1 THEN 1 ELSE 0 END), 0) AS rc1,
+        IFNULL(SUM(CASE WHEN t.registration=2 THEN 1 ELSE 0 END), 0) AS rc2
+        FROM vms_visit_record t
+        WHERE
+        t.visit_status IN (7, 8)
+        AND t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        ) t1
+    </select>
+
+    <select id="addUpStatistics" resultType="com.bonade.visitor.domain.vo.AddUpStatisticsVo" parameterType="map">
+        SELECT SUM(t1.rc1) AS rc1, SUM(t1.rc2) AS rc2, SUM(t1.rc3) AS rc3 FROM(
+        SELECT
+        COUNT(1) AS rc1, 0 AS rc2, 0 AS rc3
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') <![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') <![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        AND EXISTS(SELECT * FROM vms_visit_record_behavior_trace WHERE visit_record_id=t.id AND visit_status=7)
+        UNION ALL
+        SELECT
+        0 AS rc1, COUNT(1) AS rc2, 0 AS rc3
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') <![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') <![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        AND EXISTS(SELECT * FROM vms_visit_record_behavior_trace WHERE visit_record_id=t.id AND visit_status=8)
+        UNION ALL
+        SELECT
+        0 AS rc1, 0 AS rc2, COUNT(1) AS rc3
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') <![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') <![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        AND EXISTS(SELECT * FROM vms_visit_record_behavior_trace WHERE visit_record_id=t.id AND visit_status=9)
+        ) t1
+    </select>
+
+    <select id="attrStatistics"  resultType="com.bonade.visitor.domain.vo.AttrStatisticsVo" parameterType="map">
+        SELECT
+        SUM(CASE WHEN t.visitor_attribute=1 THEN 1 ELSE 0 END) AS pt,
+        SUM(CASE WHEN t.visitor_attribute=2 THEN 1 ELSE 0 END) AS gb,
+        SUM(CASE WHEN t.visitor_attribute=3 THEN 1 ELSE 0 END) AS hmd
+        FROM vms_visitor t
+        WHERE
+        EXISTS (
+        SELECT * FROM vms_visit_record t1
+        WHERE t.id=t1.visitor_id
+        AND t1.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t1.appointment_start_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t1.appointment_start_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        )
+    </select>
+
+    <select id="visitCauseStatistics" resultType="com.bonade.visitor.domain.vo.VisitCauseStatisticsVo" parameterType="map">
+        SELECT
+        SUM(CASE WHEN t.visit_cause=1 THEN 1 ELSE 0 END) AS xmdj,
+        SUM(CASE WHEN t.visit_cause=2 THEN 1 ELSE 0 END) AS ywqt,
+        SUM(CASE WHEN t.visit_cause=3 THEN 1 ELSE 0 END) AS rcwh,
+        SUM(CASE WHEN t.visit_cause=4 THEN 1 ELSE 0 END) AS msyy
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+    </select>
+
+    <select id="employeeStatistics" resultType="com.bonade.visitor.domain.vo.EmployeeStatisticsVo" parameterType="map">
+        SELECT
+        t.internal_staff_user_id,t.internal_staff_user_name AS userName,t.internal_staff_user_dept AS userDept,
+        COUNT(1) AS rc
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        <if test="param.startTime != null">
+            AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        </if>
+        <if test="param.endTime != null">
+            AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        </if>
+        GROUP BY t.internal_staff_user_id
+        ORDER BY COUNT(1) DESC
+        LIMIT 5
+    </select>
+
+    <select id="deptStatistics" resultType="com.bonade.visitor.domain.vo.DeptStatisticsVo" parameterType="map">
+        SELECT
+        t.internal_staff_user_dept AS userDept,DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d') AS rq,
+        COUNT(1) AS rc
+        FROM vms_visit_record t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND t.internal_staff_user_dept IS NOT NULL
+        <if test="param.startTime != null">
+            AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[>=]]>DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        </if>
+        <if test="param.endTime != null">
+            AND DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')<![CDATA[<=]]>DATE_FORMAT(#{param.endTime}, '%Y-%m-%d')
+        </if>
+        GROUP BY t.internal_staff_user_dept,DATE_FORMAT(t.appointment_start_time, '%Y-%m-%d')
+        ORDER BY COUNT(1) DESC
+        LIMIT 5
+    </select>
+
+    <select id="deviceStatistics" resultType="map" parameterType="map">
+        SELECT
+        SUM(CASE WHEN DATE_FORMAT(t.create_time, '%Y-%m-%d') <![CDATA[>=]]> DATE_FORMAT(#{param.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t.create_time, '%Y-%m-%d') <![CDATA[>=]]> DATE_FORMAT(#{param.endTime}, '%Y-%m-%d') THEN 1 ELSE 0 END) AS newDevice,
+        SUM(CASE WHEN t.status=1 THEN 1 ELSE 0 END) AS runingDevice,
+        SUM(CASE WHEN t.status=2 THEN 1 ELSE 0 END) AS defendDevice,
+        SUM(CASE WHEN t.status=3 THEN 1 ELSE 0 END) AS invalidDevice
+        FROM vms_guard t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND t.area_type=2
+    </select>
+
+    <select id="deviceAreaStatistics" resultType="map" parameterType="map">
+        SELECT t2.name,MAX(t2.device) AS device FROM(
+            SELECT
+            t1.name,COUNT(1) AS device
+            FROM vms_guard t
+            LEFT JOIN vms_area t1 ON t1.id=t.area_id
+            WHERE t.enterprise_id=#{param.enterpriseId}
+            AND t.area_type=2
+            GROUP BY t1.name
+        )t2
+    </select>
+
+    <select id="deviceTypeStatistics" resultType="com.bonade.visitor.domain.vo.DeviceTypeStatisticVo" parameterType="map">
+        SELECT t.guard_type AS guardType,COUNT(1) AS device
+        FROM vms_guard t
+        WHERE t.enterprise_id=#{param.enterpriseId}
+        AND t.area_type=2
+        GROUP BY t.guard_type
+    </select>
+
+    <!-- *************************************访客数据统计-end******************************** -->
+
+    <select id="selectRecordDetail" resultType="com.bonade.visitor.domain.vo.VisitRecordDetailVo">
+
+        SELECT t1.name AS areaName,t.id,t.registration,t.internal_staff_user_id AS internalStaffUserId,
+        t.internal_staff_user_name AS internalStaffUserName,t.internal_staff_user_tel AS internalStaffUserTel,
+        t.internal_staff_user_dept AS internalStaffUserDept,t.internal_staff_user_station AS internalStaffUserStation,
+        t.appointment_start_time AS appointmentStartTime,t.appointment_end_time AS appointmentEndTime,
+        t.visit_cause AS visitCause,t.first_check_in_time AS firstCheckInTime,t3.operation_time AS operationTime,
+        t2.state,t7.user_name AS userName,IF(t6.errorCount, '是', '否') AS abnormalMsg
+        FROM vms_visit_record t
+        LEFT JOIN vms_garden_area t1 ON t.enterprise_id=t1.enterprise_id
+        LEFT JOIN vms_approval t2 ON t.id=t2.visit_record_id
+        LEFT JOIN vms_approval_detail t7 ON t7.approval_id=t2.id
+        LEFT JOIN (
+        SELECT MAX(create_time),visit_record_id,operation_time
+        FROM vms_visit_record_behavior_trace WHERE visit_status=8 GROUP BY visit_record_id
+        )t3 ON t3.visit_record_id=t.id
+        LEFT JOIN vms_visitor t4 ON t.visitor_id=t4.id
+        LEFT JOIN (
+        SELECT t5.visitor_id,COUNT(1) AS errorCount FROM vms_abnormal t5 GROUP BY t5.visitor_id
+        ) t6 ON t6.visitor_id=t4.id
+        WHERE t.visitor_id=#{visitorId}
+        ORDER BY t.create_time DESC
+    </select>
+
+    <select id="getRecordList" resultType="com.bonade.visitor.domain.vo.VisitRecordVo">
+        SELECT
+            t.id,
+            t.enterprise_id enterpriseId,
+            t.enterprise_name enterpriseName,
+            t.visit_invite_template_id visitInviteTemplateId,
+            t.visitor_id visitorId,
+            t.internal_staff_user_id internalStaffUserId,
+            t.internal_staff_user_name internalStaffUserName,
+            t.internal_staff_user_tel internalStaffUserTel,
+            t.internal_staff_user_dept internalStaffUserDept,
+            t.internal_staff_user_station internalStaffUserStation,
+            t.permission,
+            t.registration,
+            t.source,
+            t.appointment_start_time appointmentStartTime,
+            t.appointment_end_time appointmentEndTime,
+            t.effective_date effectiveDate,
+            t.expiration_date expirationDate,
+            t.visit_cause visitCause,
+            t.visit_status visitStatus,
+            t.car_num carNum,
+            t.follow_num followNum,
+            t.visitor_code visitorCode,
+            t.qr_code qrCode,
+            t.first_check_in_time firstCheckInTime,
+            t.meeting_room meetingRoom,
+            t.operation_status operationStatus,
+            t.operation_user_id operationUserId,
+            t.operation_remark operationRemark,
+            t.operation_time operationTime,
+            t.area_ids areaIds,
+            t.invitation_explain invitationExplain,
+            t.address,
+            t.create_by createBy,
+            t.create_username createUsername,
+            t.create_time createTime,
+            t.update_by updateBy,
+            t.update_username updateUsername,
+            t.update_time updateTime,
+            t.valid,
+            t.remark,
+            t.version
+        FROM
+            vms_visit_record t LEFT JOIN vms_approval a ON t.id = a.visit_record_id
+        WHERE
+            t.valid = 1
+            AND t.visitor_id in (SELECT v.id FROM vms_visitor v WHERE v.tel = #{param.tel})
+            AND (
+                    t.visit_status != 7
+                    OR (
+                        t.visit_status = 7
+                        AND t.appointment_end_time > NOW()
+                    )
+                OR (visit_status IS NULL)
+                )
+            AND a.state is not NULL AND a.state = 1
+            ORDER BY t.update_time DESC
+    </select>
+
+    <select id="getRecordAllList" resultType="com.bonade.visitor.domain.vo.VisitRecordVo">
+        SELECT
+            t.id,
+            t.enterprise_id enterpriseId,
+            t.enterprise_name enterpriseName,
+            t.visit_invite_template_id visitInviteTemplateId,
+            t.visitor_id visitorId,
+            t.internal_staff_user_id internalStaffUserId,
+            t.internal_staff_user_name internalStaffUserName,
+            t.internal_staff_user_tel internalStaffUserTel,
+            t.internal_staff_user_dept internalStaffUserDept,
+            t.internal_staff_user_station internalStaffUserStation,
+            t.permission,
+            t.registration,
+            t.source,
+            t.appointment_start_time appointmentStartTime,
+            t.appointment_end_time appointmentEndTime,
+            t.effective_date effectiveDate,
+            t.expiration_date expirationDate,
+            t.visit_cause visitCause,
+            t.visit_status visitStatus,
+            t.car_num carNum,
+            t.follow_num followNum,
+            t.visitor_code visitorCode,
+            t.qr_code qrCode,
+            t.first_check_in_time firstCheckInTime,
+            t.meeting_room meetingRoom,
+            t.operation_status operationStatus,
+            t.operation_user_id operationUserId,
+            t.operation_remark operationRemark,
+            t.operation_time operationTime,
+            t.area_ids areaIds,
+            t.invitation_explain invitationExplain,
+            t.address,
+            t.create_by createBy,
+            t.create_username createUsername,
+            t.create_time createTime,
+            t.update_by updateBy,
+            t.update_username updateUsername,
+            t.update_time updateTime,
+            t.valid,
+            t.remark,
+            t.version
+        FROM
+            vms_visit_record t
+        WHERE
+            t.valid = 1
+            AND t.visitor_id in (SELECT v.id FROM vms_visitor v WHERE v.tel = #{param.tel})
+            ORDER BY t.update_time DESC
+    </select>
+
+</mapper>

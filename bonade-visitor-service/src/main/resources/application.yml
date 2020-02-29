@@ -1,0 +1,139 @@
+app:
+  id: BONADE-VMS
+  version: 0.0.1
+apollo:
+  bootstrap:
+    enabled: true
+    namespaces: application
+    eagerLoad.enabled: true
+
+server:
+  port: ${serverPort:8080}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${registryAddr}
+
+# region Config registered to Spring Boot Starter Context
+spring:
+  profiles:
+    active: ${profiles}
+  application:
+    name: ${app.id}
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+      location: ${java.io.tmpdir}
+
+  #Datasource
+  datasource:
+    url: ${db.url}
+    username: ${db.username}
+    password: ${db.password}
+    driver-class-name: ${db.driverClass}
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      connection-timeout: ${db.connectionTimeout}
+      minimum-idle: ${db.minIdle}
+      maximum-pool-size: ${db.maxActive}
+      idle-timeout: ${db.idleTimeout}
+
+  # REDIS
+  redis:
+    host: ${redis.host}
+    port: ${redis.port}
+    database: ${redis.database}
+    password: ${redis.password}
+    timeout: ${redis.timeout}
+    lettuce:
+      pool:
+        max-active: ${redis.lettuce.pool.max-active}
+        max-wait: ${redis.lettuce.pool.max-wait}
+        max-idle: ${redis.lettuce.pool.max-idle}
+        min-idle: ${redis.lettuce.pool.min-idle}
+
+  # KAFKA
+  kafka:
+    bootstrap-servers: ${kafkaServer}
+    producer:
+      retries: 0
+      batch-size: 16384
+      buffer-memory: 33554432
+      properties:
+        linger.ms: 1
+    consumer:
+      enable-auto-commit: true
+      auto-commit-interval: 100ms
+      group-id: ${app.id}-Group
+
+  # RabbitMQ
+  rabbitmq:
+    host: ${rabbitmq.host}
+    port: ${rabbitmq.port}
+    username: ${rabbitmq.username}
+    password: ${rabbitmq.password}
+
+  # Sleuth & Zipkin
+  sleuth:
+    enabled: false
+    sampler:
+      probability: 1.0
+  zipkin:
+    enabled: false
+    sender:
+      type: KAFKA
+    kafka:
+      topic: zipkin
+
+# endregion
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  type-aliases-package: com.bonade.visitor.domain.entity
+  type-enums-package: com.bonade.visitor.domain.enums
+  global-config:
+    banner: false
+    db-config:
+      id-type: ID_WORKER
+      table-underline: true
+      logic-delete-value: 0
+      logic-not-delete-value: 1
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    jdbc-type-for-null: NULL
+
+jasypt:
+  encryptor:
+    password: ${encrypt.key}
+
+# region Actuator config
+info:
+  version: ${app.version}
+  commonStarterVersion: 2.2.7-SNAPSHOT
+  jobExecutorVersion: 1.0.11-RELEASE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        #加载所有的端点，默认只加载了info、health
+        include: '*'
+  endpoint:
+    health:
+      show-details: always
+    #可以关闭指定的端点
+    shutdown:
+      enabled: false
+# endregion
+
+swagger2:
+  enable: ${swaggerEnable}
+  base-package: com.bonade.visitor.controller
+  title: 访客管理服务 API
+  contact-name: 安徽研发中心
+  contact-url:
+  contact-email:
+  description: API 接口文档

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.AreaMapper">
+
+    <select id="getPage" resultType="com.bonade.visitor.domain.vo.AreaOutVo">
+        SELECT
+            t.id,
+            t.`name`,
+            t.position,
+            t.`area_describe` areaDescribe,
+            t.create_time createTime,
+            t.create_username createUsername,
+            t.`area_type` areaType
+        FROM
+        vms_area t
+        WHERE t.valid = 1
+        AND t.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.areaType != null">
+            AND t.`area_type` = #{vo.areaType}
+        </if>
+        ORDER BY t.create_time DESC
+    </select>
+
+    <select id="getList" resultType="com.bonade.visitor.domain.vo.AreaOutVo">
+        SELECT
+        t.id,
+        t.`name`,
+        t.position,
+        t.`area_describe` areaDescribe,
+        t.create_time createTime,
+        t.create_username createUsername,
+        t.`area_type` areaType
+        FROM
+        vms_area t
+        WHERE t.valid = 1
+        AND t.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.areaType != null">
+            AND t.`area_type` = #{vo.areaType}
+        </if>
+        ORDER BY t.create_time DESC
+    </select>
+
+
+</mapper>

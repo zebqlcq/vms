@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.MessageNoticeTemplateMapper">
+
+    <select id="getPage" resultType="com.bonade.visitor.domain.vo.MessageNoticeTemplateOutVo">
+        SELECT
+            t.id,
+            t.`name`,
+            t.notice_type noticeType,
+            t.`code`,
+            t.`status`,
+            t.jump_modes jumpModes,
+            t.web_url webUrl,
+            t.title,
+            t.content,
+            t.enterprise_id enterpriseId
+        FROM
+            vms_message_notice_template t
+        WHERE
+        t.valid = 1
+        AND v.valid = 1 AND v.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.noticeType != null and vo.noticeType !='' ">
+            AND t.`notice_type` = #{vo.noticeType}
+        </if>
+    </select>
+    <select id="getMessageNoticeUserPage" resultType="com.bonade.visitor.domain.vo.VisitOutVo">
+        SELECT
+            t.id,
+            t.`name`
+        FROM
+            vms_visitor t
+        WHERE
+            t.valid = 1 AND t.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.staffType != null and vo.staffType !='' ">
+            AND t.`staff_type` = #{vo.staffType}
+        </if>
+    </select>
+    <select id="getMessageNoticeUserConPage" resultType="com.bonade.visitor.domain.vo.VisitOutVo">
+        SELECT
+        t.id,
+        t.`name`,
+        u.id messageId
+        FROM
+        vms_visitor t LEFT JOIN vms_message_notice_user u ON t.id = u.visitor_id AND u.id = #{vo.id}
+        WHERE
+        t.valid = 1 AND t.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.staffType != null and vo.staffType !='' ">
+            AND t.`staff_type` = #{vo.staffType}
+        </if>
+    </select>
+
+</mapper>

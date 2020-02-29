@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.VisitorMapper">
+
+    <select id="getVisitPage" resultType="com.bonade.visitor.domain.vo.BlacklistOutVo">
+        SELECT
+        v.id visitorId,
+        t.id abnormalId,
+        v.`name`,
+        t.create_time blacklistTime,
+        t.abnormal_case abnormalCase,
+        v.tel,
+        v.cart_no cartNo,
+        v.blacklist_operation blacklistOeration,
+        (SELECT img.img_url FROM vms_abnormal_img img WHERE img.abnormal_id = v.id and img.img_type = 3 LIMIT 1) abnormalImg
+        FROM
+        vms_abnormal t
+        LEFT JOIN vms_visitor v ON t.visitor_id = v.id
+        WHERE
+        t.valid = 1
+        AND v.valid = 1
+        AND v.visitor_attribute = #{vo.visitorAttribute}
+        <if test="vo.name != null and vo.name !='' ">
+            AND v.`name` like concat('%',#{vo.name},'%')
+        </if>
+    </select>
+
+    <select id="getVisitorPage" resultType="com.bonade.visitor.domain.vo.BlacklistOutVo">
+        SELECT
+            v.id visitorId,
+            (
+                SELECT
+                    img.img_url
+                FROM
+                    vms_abnormal_img img
+                WHERE
+                    img.abnormal_id = v.id
+                AND img.img_type = 3
+                LIMIT 1
+            ) abnormalImg,
+            v.`name`,
+            v.tel,
+            v.cart_no cartNo,
+            v.blacklist_time blacklistTime,
+            v.abnormal_case abnormalCase,
+            v.blacklist_operation blacklistOperation
+        FROM
+            vms_visitor v
+        WHERE
+            v.valid = 1
+        AND v.enterprise_id = #{vo.enterpriseId}
+        AND v.visitor_attribute = #{vo.visitorAttribute}
+        <if test="vo.name != null and vo.name !='' ">
+            AND v.`name` like concat('%',#{vo.name},'%')
+        </if>
+        order by v.update_time desc
+    </select>
+
+    <select id="selectVisitorArchivePage" resultType="com.bonade.visitor.domain.vo.VisitArchivePageOutVo">
+        SELECT t.id,t.name, t.company_name AS companyName,t.user_station AS userStation,t.tel,t.cart_no AS cartNo,t.visitor_attribute AS visitorAttribute,
+        t.face_img AS faceImg,IF(t4.errorCount, '是', '否') AS abnormalMsg,t1.visit_status AS visitStatus,t1.car_num AS carNum,t1.first_check_in_time AS firstCheckInTime
+        ,t2.operation_time AS operationTime
+        FROM (
+        SELECT MAX(create_time),visitor_id,visit_status,car_num,first_check_in_time,`id`
+        FROM vms_visit_record WHERE enterprise_id IN
+        <foreach collection="enterpriseIdList" item="e" open="(" close=")" separator=",">
+            #{e}
+        </foreach>
+        GROUP BY visitor_id
+        ) t1
+        LEFT JOIN (
+        SELECT MAX(create_time),visit_record_id,operation_time
+        FROM vms_visit_record_behavior_trace WHERE visit_status=8 GROUP BY visit_record_id
+        )t2 ON t2.visit_record_id=t1.id
+        LEFT JOIN vms_visitor t ON t1.visitor_id=t.id
+        LEFT JOIN (
+        SELECT t3.visitor_id,COUNT(1) AS errorCount FROM vms_abnormal t3 GROUP BY t3.visitor_id
+        ) t4 ON t4.visitor_id=t.id
+        WHERE 1=1
+        <if test="vo.name != null and vo.name !=''">
+            AND t.name like CONCAT('%', #{vo.name}, '%')
+        </if>
+        <if test="vo.visitStatus != null and vo.visitStatus !=''">
+            AND t1.visit_status=#{vo.visitStatus}
+        </if>
+        <if test="vo.checkInTimeStart != null">
+            AND DATE_FORMAT(t1.first_check_in_time,'%Y-%m-%d %H:%m') <![CDATA[>=]]> DATE_FORMAT(#{vo.checkInTimeStart},'%Y-%m-%d %H:%m')
+        </if>
+        <if test="vo.checkInTimeEnd != null">
+            AND DATE_FORMAT(t1.first_check_in_time,'%Y-%m-%d %H:%m') <![CDATA[<=]]> DATE_FORMAT(#{vo.checkInTimeEnd},'%Y-%m-%d %H:%m')
+        </if>
+
+    </select>
+
+    <select id="selectVisitorArchiveList" resultType="com.bonade.visitor.domain.vo.VisitArchivePageOutVo">
+        SELECT t.id,t.name, t.company_name AS companyName,t.user_station AS userStation,t.tel,t.cart_no AS cartNo,t.visitor_attribute AS visitorAttribute
+        FROM vms_visitor t
+        WHERE 1=1
+        <if test="vo.name != null and vo.name !=''">
+            AND t.name like CONCAT('%', #{vo.name}, '%')
+        </if>
+        AND EXISTS (SELECT t1.id FROM vms_visit_record t1 WHERE t.id=t1.visitor_id AND t1.enterprise_id=#{vo.enterpriseId})
+        LIMIT 5000
+    </select>
+
+    <select id="visitArchiveStatistics" resultType="com.bonade.visitor.domain.vo.VisitArchiveStatisticsDetailVo">
+        SELECT DATE_FORMAT(t1.first_check_in_time, #{vo.dataPattern}) AS rq,
+        COUNT(1) AS rc,'t' AS bj
+        FROM vms_visit_record t1
+        WHERE t1.enterprise_id=#{vo.enterpriseId}
+        AND t1.visit_status IN (7, 8)
+        AND DATE_FORMAT(t1.first_check_in_time, '%Y-%m-%d') <![CDATA[>=]]> DATE_FORMAT(#{vo.startTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t1.first_check_in_time, '%Y-%m-%d') <![CDATA[<=]]> DATE_FORMAT(#{vo.endTime}, '%Y-%m-%d')
+        GROUP BY DATE_FORMAT(t1.first_check_in_time, #{vo.dataPattern})
+        UNION ALL
+        SELECT DATE_FORMAT(t1.first_check_in_time, #{vo.dataPattern}) AS rq,
+        COUNT(1) AS rc,'o' AS bj
+        FROM vms_visit_record t1
+        WHERE t1.enterprise_id=#{vo.enterpriseId}
+        AND t1.visit_status IN (7, 8)
+        AND DATE_FORMAT(t1.first_check_in_time, '%Y-%m-%d') <![CDATA[>=]]> DATE_FORMAT(#{vo.preStartTime}, '%Y-%m-%d')
+        AND DATE_FORMAT(t1.first_check_in_time, '%Y-%m-%d') <![CDATA[<=]]> DATE_FORMAT(#{vo.preEndTime}, '%Y-%m-%d')
+        GROUP BY DATE_FORMAT(t1.first_check_in_time, #{vo.dataPattern})
+    </select>
+</mapper>

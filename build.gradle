@@ -1,0 +1,144 @@
+plugins {
+    id "org.sonarqube" version "2.8"
+}
+
+sonarqube {
+    properties {
+        property "sonar.sourceEncoding", "UTF-8"
+        property "sonar.host.url", "http://192.168.12.150:9000/"
+        property "sonar.login", "8ee1a48e6733cddb38d2ac24db06978cd49aea35"
+        property "sonar.profile", "Sonar way"
+    }
+}
+
+allprojects {
+    group 'com.bonade'
+    version '0.0.1'
+
+    if (JavaVersion.current().isJava8Compatible()) {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'maven'
+    apply plugin: 'idea'
+
+    ext {
+        javaVersion = 1.8
+        encoding = 'UTF-8'
+
+        junitJupiterVersion = '5.6.0'
+        commonStarterVersion = '2.2.14-SNAPSHOT'
+        springVersion = '5.2.2.RELEASE'
+        springBootVersion = '2.2.2.RELEASE'
+        springCloudVersion = '2.2.1.RELEASE'
+        jasyptVersion = '3.0.0.1'
+        commonsPoolVersion = '2.7.0'
+        zxingVersion = '3.4.0'
+        hikariVersion = '3.4.2'
+        mysqlVersion = '6.0.6'
+
+        jobExecutorVersion = '1.0.11-RELEASE'
+        poiVersion = '4.1.1'
+    }
+
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+
+    compileJava {
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
+        options.encoding = encoding
+    }
+
+    compileTestJava {
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
+        options.encoding = encoding
+    }
+
+    javadoc {
+        options.encoding = encoding
+    }
+
+    repositories {
+        mavenLocal()
+        maven { url "http://60.169.170.69:8081/repository/mathcat/" }
+        mavenCentral()
+    }
+
+    task sourceJar(type: Jar) {
+        archiveClassifier.set('sources')
+        from sourceSets.main.allJava
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        archiveClassifier.set('javadoc')
+        from javadoc.destinationDir
+    }
+
+    artifacts {
+        archives javadocJar
+        archives sourceJar
+    }
+
+    idea {
+        module {
+            inheritOutputDirs = true
+            downloadSources = true
+            downloadJavadoc = true
+//            outputDir = file("$buildDir/classes/main/")
+//            testOutputDir = file("$buildDir/classes/test/")
+        }
+    }
+}
+
+
+task cleanBuild(group: 'build') doLast {
+    File f = file('build')
+    if (f.exists()) {
+        print("delete build")
+        println(f.deleteDir() ? " success" : " failure")
+    }
+    f = file('out')
+    if (f.exists()) {
+        print("delete out")
+        println(f.deleteDir() ? " success" : " failure")
+    }
+    f = file('target')
+    if (f.exists()) {
+        print("delete target")
+        println(f.deleteDir() ? " success" : " failure")
+    }
+    f = file("bin")
+    if (f.exists()) {
+        print("delete bin")
+        println(f.deleteDir() ? " success" : " failure")
+    }
+    allprojects.each { p ->
+        f = file(p.name + "/build")
+        if (f.exists()) {
+            print("delete " + p.name + "/build")
+            println(f.deleteDir() ? " success" : " failure")
+        }
+        f = file(p.name + "/out")
+        if (f.exists()) {
+            print("delete " + p.name + "/out")
+            println(f.deleteDir() ? " success" : " failure")
+        }
+        f = file(p.name + "/target")
+        if (f.exists()) {
+            print("delete " + p.name + "/target")
+            println(f.deleteDir() ? " success" : " failure")
+        }
+        f = file(p.name + "/bin")
+        if (f.exists()) {
+            print("delete " + p.name + "/bin")
+            println(f.deleteDir() ? " success" : " failure")
+        }
+    }
+}

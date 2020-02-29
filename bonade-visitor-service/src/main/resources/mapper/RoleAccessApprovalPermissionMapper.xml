@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.RoleAccessApprovalPermissionMapper">
+
+    <delete id="deletePermission">
+        DELETE FROM vms_role_access_approval_permission WHERE enterprise_id=#{enterpriseId} AND source=#{source}
+    </delete>
+
+    <insert id="batchPermission" parameterType="java.util.List">
+        INSERT INTO vms_role_access_approval_permission (
+        role_id,
+        attribute,
+        enterprise_id,
+        source,
+        permission_type,
+        permission_range,
+        range_id,
+        range_name,
+        whole,
+        open_time_start,
+        open_time_end,
+        create_time
+        ) VALUES
+        <foreach collection="permissionList" item="entry" separator=",">
+            (
+            #{entry.roleId},
+            #{entry.attribute},
+            #{entry.enterpriseId},
+            #{entry.source},
+            #{entry.permissionType},
+            #{entry.permissionRange},
+            #{entry.rangeId},
+            #{entry.rangeName},
+            #{entry.whole},
+            #{entry.openTimeStart},
+            #{entry.openTimeEnd},
+            #{entry.createTime}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectRoleByUser" resultType="java.lang.Long">
+        SELECT p.role_id AS roleId
+        FROM vms_role_access_approval_permission p WHERE 1=1
+        AND p.enterprise_id=#{param.enterpriseId}
+        AND ((p.permission_range IN (1, 2, 10, 11, 12) AND p.whole=1) OR (p.permission_range=1 AND range_id=#{param.userId})
+        <if test="param.departmentList != null">
+            <foreach collection="param.departmentList" item="e" open="OR (p.permission_range=10 AND range_id IN (" close="))" separator=",">
+                #{e}
+            </foreach>
+        </if>
+        <if test="param.stationList != null">
+            <foreach collection="param.stationList" item="e" open=" OR (p.permission_range=11 AND range_id IN (" close="))" separator=",">
+                #{e}
+            </foreach>
+        </if>
+        <if test="param.customOrgList != null">
+            <foreach collection="param.customOrgList" item="e" open=" OR (p.permission_range=12 AND range_id IN (" close="))" separator=",">
+                #{e}
+            </foreach>
+        </if>
+        )
+    </select>
+
+</mapper>

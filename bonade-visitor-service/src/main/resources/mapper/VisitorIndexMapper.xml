@@ -1,0 +1,440 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.VisitIndexMapper">
+
+    <select id="getVisitIndexRecordApproalPageList" resultType="com.bonade.visitor.domain.dto.VisitIndexRecordApproalDto">
+          SELECT
+                DISTINCT
+                a.id AS id,
+                a.create_time AS createTime,
+                d.`name` AS name,
+                d.company_name AS companyName,
+                a.internal_staff_user_name AS internalStaffUserName,
+                a.enterprise_id AS enterpriseId,
+                a.enterprise_name AS enterpriseName,
+                a.visit_cause AS visitCause,
+                "" AS visitCauseName,
+                a.appointment_start_time AS appointmentStartTime,
+                a.appointment_end_time AS appointmentEndTime,
+                b.id AS approvalId,
+                c.state AS state,
+                "" AS stateName,
+                b.state AS approvalState,
+                "" AS approvalStateName,
+                a.visit_status AS visitStatus,
+                "" AS visitStatusName,
+                c.approval_opinion AS approvalOpinion,
+                c.approval_time AS approvalTime
+            FROM
+            vms_approval b
+            LEFT JOIN vms_visit_record a ON b.visit_record_id = a.id
+            LEFT JOIN vms_approval_detail c ON c.approval_id = b.id
+            LEFT JOIN vms_visitor d ON d.id = a.visitor_id
+            WHERE
+                a.valid = 1 AND b.valid = 1
+            <if test="visitIndexRecordApproalPageVo.enterpriseId != null">
+                AND c.user_id = #{visitIndexRecordApproalPageVo.userId}
+            </if>
+            <if test="visitIndexRecordApproalPageVo.enterpriseId != null">
+                AND a.enterprise_id = #{visitIndexRecordApproalPageVo.enterpriseId}
+            </if>
+            <!--<if test="approvalState != null">
+                AND b.state = #{approvalState}
+            </if>-->
+            <if test="stateList != null and stateList.size() > 0">
+                AND c.state in
+                <foreach collection="stateList" index="index" item="item" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="type != null">
+                AND c.type = #{type}
+            </if>
+            order by b.create_time DESC
+    </select>
+
+    <select id="getVisitIndexRecordCopyApproalPageList" resultType="com.bonade.visitor.domain.dto.VisitIndexRecordCopyApproalDto">
+        SELECT
+        DISTINCT
+        a.id AS id,
+        a.create_time AS createTime,
+        d.`name` AS name,
+        d.company_name AS companyName,
+        a.internal_staff_user_name AS internalStaffUserName,
+        a.enterprise_id AS enterpriseId,
+        a.enterprise_name AS enterpriseName,
+        a.visit_cause AS visitCause,
+        "" AS visitCauseName,
+        a.appointment_start_time AS appointmentStartTime,
+        a.appointment_end_time AS appointmentEndTime,
+        b.id AS approvalId,
+        c.state AS state,
+        "" AS stateName,
+        b.state AS approvalState,
+        "" AS approvalStateName,
+        a.visit_status AS visitStatus,
+        "" AS visitStatusName,
+        c.approval_opinion AS approvalOpinion,
+        c.approval_time AS approvalTime,
+        (SELECT e.user_name AS approvalCurrentName FROM vms_approval_detail e WHERE e.approval_id = b.id AND e.type = 0 ORDER BY e.sort ASC LIMIT 1),
+        (SELECT e.approval_time AS approvalCurrentTime FROM vms_approval_detail e WHERE e.approval_id = b.id AND e.type = 0 ORDER BY e.sort ASC LIMIT 1)
+        FROM
+        vms_approval b
+        LEFT JOIN vms_visit_record a ON b.visit_record_id = a.id
+        LEFT JOIN vms_approval_detail c ON c.approval_id = b.id
+        LEFT JOIN vms_visitor d ON d.id = a.visitor_id
+        WHERE
+        a.valid = 1 AND b.valid = 1
+        <if test="visitIndexRecordApproalPageVo.enterpriseId != null">
+            AND c.user_id = #{visitIndexRecordApproalPageVo.userId}
+        </if>
+        <if test="visitIndexRecordApproalPageVo.enterpriseId != null">
+            AND a.enterprise_id = #{visitIndexRecordApproalPageVo.enterpriseId}
+        </if>
+        <!--<if test="approvalState != null">
+            AND b.state = #{approvalState}
+        </if>-->
+        <!--<if test="stateList != null and stateList.size() > 0">
+            AND c.state in
+            <foreach collection="stateList" index="index" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>-->
+        <if test="type != null">
+            AND c.type = #{type}
+        </if>
+        order by b.create_time DESC
+    </select>
+
+    <select id="getApproalRecordDetail" resultType="com.bonade.visitor.domain.dto.ApproalRecordDetailDto">
+         SELECT
+                a.id AS id,
+                b.name AS name,
+                b.tel AS tel,
+                a.visit_cause AS visitCause,
+                "" AS visitCauseName,
+                a.invitation_explain AS invitationExplain,
+                a.appointment_start_time AS appointmentStartTime,
+                a.appointment_end_time AS appointmentEndTime,
+                a.follow_num AS followNum,
+                a.car_num AS carNum,
+                b.visitor_attribute AS visitorAttribute,
+                "" AS visitorAttributeName,
+                a.visit_status AS visitStatus,
+                "" AS visitStatusName,
+                c.visit_record_id AS approvalId
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        LEFT JOIN vms_approval c ON a.id = c.visit_record_id
+        WHERE a.id= #{id}
+    </select>
+
+    <select id="getVisitorPageList" resultType="com.bonade.visitor.domain.dto.VisitorDto">
+        SELECT
+            a.id AS id,
+            b.face_img AS faceImg,
+            b.name AS name,
+            a.enterprise_id AS enterpriseId,
+            a.enterprise_name AS enterpriseName,
+            a.appointment_start_time AS appointmentStartTime,
+            a.visit_status AS visitStatus,
+            "" AS visitStatusName,
+            a.first_check_in_time AS checkInTime,
+            c.operation_time AS checkOutTime
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        LEFT JOIN (SELECT d.* FROM vms_visit_record_behavior_trace d WHERE d.visit_status = 9) c ON a.id = c.visit_record_id
+        WHERE 1=1
+        <if test="visitorPageVo.keyword != null and visitorPageVo.keyword != ''">
+            AND( b.name LIKE CONCAT('%',#{visitorPageVo.keyword},'%') OR a.enterprise_name LIKE CONCAT('%',#{visitorPageVo.keyword},'%'))
+        </if>
+        <if test="visitorPageVo.yearSelected != null">
+            AND YEAR(a.appointment_start_time) = #{visitorPageVo.yearSelected}
+        </if>
+        <if test="visitorPageVo.dateSpareBegin != null and visitorPageVo.dateSpareBegin != '' ">
+            <![CDATA[
+              AND DATE_FORMAT(a.appointment_start_time, '%Y-%m-%d %H:%i:%s') >=  DATE_FORMAT(#{visitorPageVo.dateSpareBegin}, '%Y-%m-%d %H:%i:%s')
+            ]]>
+        </if>
+        <if test="visitorPageVo.dateSpareEnd != null and visitorPageVo.dateSpareEnd !='' ">
+            <![CDATA[
+                AND DATE_FORMAT(a.appointment_start_time, '%Y-%m-%d %H:%i:%s') <=  DATE_FORMAT(#{visitorPageVo.dateSpareEnd}, '%Y-%m-%d %H:%i:%s')
+            ]]>
+        </if>
+        ORDER BY a.appointment_start_time DESC
+    </select>
+
+    <select id="getVisitorEnterprisePageList" resultType="com.bonade.visitor.domain.dto.VisitorEnterpriseDto">
+        SELECT
+            a.id AS id,
+            b.face_img AS faceImg,
+            b.name AS name,
+            b.company_name AS companyName,
+            a.appointment_start_time AS appointmentStartTime,
+            a.first_check_in_time AS firstCheckInTime,
+            b.visitor_attribute AS visitorAttribute,
+            "" AS visitorAttributeName,
+            a.visit_cause AS visitCause,
+            "" AS visitCauseName,
+            a.visit_status AS visitStatus,
+            "" AS visitStatusName,
+            b.cart_no AS cartNo,
+           (CASE WHEN a.visit_status IN(1,2,3,4) AND a.appointment_start_time &lt; ADDDATE(NOW(),-1) THEN 2 ELSE a.operation_status END) AS operationStatus,
+            a.visitor_id AS visitorId
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        WHERE 1=1
+        <if test="visitorEnterprisePageVo.enterpriseId != null">
+            AND a.enterprise_id = #{visitorEnterprisePageVo.enterpriseId}
+        </if>
+        <if test="visitorEnterprisePageVo.keyword != null and visitorEnterprisePageVo.keyword != ''">
+            AND( b.name LIKE CONCAT('%',#{visitorEnterprisePageVo.keyword},'%') OR b.company_name LIKE CONCAT('%',#{visitorEnterprisePageVo.keyword},'%'))
+        </if>
+        <if test="visitorEnterprisePageVo.yearSelected != null">
+            AND YEAR(a.appointment_start_time) = #{visitorEnterprisePageVo.yearSelected}
+        </if>
+        <if test="visitorEnterprisePageVo.visitStatus != null">
+            AND a.visit_status = #{visitorEnterprisePageVo.visitStatus}
+        </if>
+        <if test="visitorEnterprisePageVo.visitorAttribute != null">
+            AND b.visitor_attribute = #{visitorEnterprisePageVo.visitorAttribute}
+        </if>
+        <if test="visitorEnterprisePageVo.dateSpareBegin != null and visitorEnterprisePageVo.dateSpareBegin != '' ">
+            <![CDATA[
+                AND DATE_FORMAT(a.appointment_start_time, '%Y-%m-%d %H:%i:%s') >=  DATE_FORMAT(#{visitorEnterprisePageVo.dateSpareBegin}, '%Y-%m-%d %H:%i:%s')
+            ]]>
+        </if>
+        <if test="visitorEnterprisePageVo.dateSpareEnd != null and visitorEnterprisePageVo.dateSpareEnd !='' ">
+            <![CDATA[
+                AND DATE_FORMAT(a.appointment_start_time, '%Y-%m-%d %H:%i:%s') <=  DATE_FORMAT(#{visitorEnterprisePageVo.dateSpareEnd}, '%Y-%m-%d %H:%i:%s')
+            ]]>
+        </if>
+        <!--<if test="visitorEnterprisePageVo.appointmentSpareBegin != null and visitorEnterprisePageVo.appointmentSpareBegin != '' ">
+            <![CDATA[
+                AND DATE_FORMAT(a.appointment_start_time, '%Y-%m-%d %H:%i:%s') >=  DATE_FORMAT(#{visitorEnterprisePageVo.appointmentSpareBegin}, '%Y-%m-%d %H:%i:%s')
+            ]]>
+        </if>
+        <if test="visitorEnterprisePageVo.appointmentSpareEnd != null and visitorEnterprisePageVo.appointmentSpareEnd !='' ">
+            <![CDATA[
+                AND DATE_FORMAT(a.appointment_start_time, '%Y-%m-%d %H:%i:%s') <=  DATE_FORMAT(#{visitorEnterprisePageVo.appointmentSpareEnd}, '%Y-%m-%d %H:%i:%s')
+            ]]>
+        </if>-->
+        ORDER BY a.appointment_start_time DESC
+    </select>
+
+    <select id="getInvitationRecordPageList" resultType="com.bonade.visitor.domain.dto.InvitationRecordDto">
+        SELECT
+            a.id AS id,
+            a.appointment_start_time AS appointmentStartTime,
+            c.temp_name AS tempName,
+            c.theme AS theme,
+            b.name AS name,
+            b.company_name AS companyName,
+            a.enterprise_id AS enterpriseId,
+            a.enterprise_name AS enterpriseName,
+            a.internal_staff_user_name AS internalStaffUserName,
+            a.internal_staff_user_dept AS internalStaffUserDept,
+            a.visit_status AS visitStatus,
+            "" AS visitStatusName
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        LEFT JOIN  vms_visit_invite_template c ON a.visit_invite_template_id = c.id
+        WHERE a.registration = 1
+        <if test="invitationRecordPageVo.enterpriseId != null">
+            AND a.enterprise_id = #{invitationRecordPageVo.enterpriseId}
+        </if>
+        ORDER BY a.appointment_start_time DESC
+    </select>
+
+    <select id="getInvitationRecordDetail" resultType="com.bonade.visitor.domain.dto.InvitationRecordDetailDto">
+         SELECT
+            a.id AS id,
+            b.name AS name,
+            b.tel AS tel,
+            a.visit_cause AS visitCause,
+            "" AS visitCauseName,
+            a.invitation_explain AS invitationExplain,
+            a.appointment_start_time AS appointmentStartTime,
+            a.appointment_end_time AS appointmentEndTime,
+            a.follow_num AS followNum,
+            a.car_num AS carNum,
+            b.visitor_attribute AS visitorAttribute,
+            "" AS visitorAttributeName,
+            a.visit_status AS visitStatus,
+            "" AS visitStatusName
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        WHERE a.id= #{id}
+    </select>
+
+    <select id="getVisitorValidPageList" resultType="com.bonade.visitor.domain.dto.VisitorValidDto">
+        SELECT
+            b.`name` AS name,
+            b.face_img AS faceImg,
+            b.company_name AS companyName,
+            b.dep_name AS depName,
+            b.user_station AS userStation,
+            b.tel AS tel,
+            b.visitor_attribute AS visitorAttribute,
+            "" AS visitorAttributeName,
+            b.visitor_type AS visitorType,
+            "" AS visitorTypeName,
+            a.enterprise_id AS enterpriseId,
+            a.enterprise_name AS enterpriseName,
+            a.appointment_start_time AS appointmentStartTime,
+            a.internal_staff_user_name AS internalStaffUserName,
+            a.registration AS registration,
+            a.id AS id,
+            a.visitor_id AS visitorId
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        WHERE to_days(a.appointment_start_time) = to_days(now())
+        <if test="visitorValidPageVo.enterpriseId != null">
+            AND b.enterprise_id = #{visitorValidPageVo.enterpriseId}
+        </if>
+        <if test="visitorValidPageVo.visitorAttribute != null">
+            AND b.visitor_attribute = #{visitorValidPageVo.visitorAttribute}
+        </if>
+        ORDER BY a.appointment_start_time DESC
+        <!--SELECT
+            a.`name` AS name,
+            a.face_img AS faceImg,
+            a.company_name AS companyName,
+            a.dep_name AS depName,
+            a.user_station AS userStation,
+            a.tel AS tel,
+            a.visitor_attribute AS visitorAttribute,
+            "" AS visitorAttributeName,
+            a.visitor_type AS visitorType,
+            "" AS visitorTypeName,
+            b.enterprise_id AS enterpriseId,
+            b.enterprise_name AS enterpriseName,
+            b.appointment_start_time AS appointmentStartTime,
+            b.internal_staff_user_name AS internalStaffUserName,
+            b.registration AS registration,
+            b.id AS id
+        FROM vms_visitor a
+        LEFT JOIN (SELECT MAX(create_time),visitor_id,enterprise_id,enterprise_name,appointment_start_time,internal_staff_user_name,registration,id FROM vms_visit_record GROUP BY visitor_id) b ON b.visitor_id = a.id
+        WHERE b.id IS NOT NULL
+        <if test="visitorValidPageVo.enterpriseId != null">
+            AND a.enterprise_id = #{visitorValidPageVo.enterpriseId}
+        </if>
+        <if test="visitorValidPageVo.visitorAttribute != null">
+            AND a.visitor_attribute = #{visitorValidPageVo.visitorAttribute}
+        </if>
+        ORDER BY a.create_time DESC-->
+    </select>
+
+    <select id="getVisitorValidDetail" resultType="com.bonade.visitor.domain.dto.VisitorValidDetailDto">
+        SELECT
+            a.id AS id,
+            b.name AS name,
+            b.company_name AS companyName,
+            a.enterprise_id AS enterpriseId,
+            a.enterprise_name AS enterpriseName,
+            b.visitor_attribute AS visitorAttribute,
+            "" AS visitorAttributeName,
+            a.visit_cause AS visitCause,
+            "" AS visitCauseName,
+            a.appointment_start_time AS appointmentStartTime,
+            a.internal_staff_user_name AS internalStaffUserName,
+            a.internal_staff_user_tel AS internalStaffUserTel,
+            a.internal_staff_user_dept AS internalStaffUserDept,
+            a.visitor_code AS visitorCode
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+		WHERE a.id = #{id}
+    </select>
+
+    <select id="getVisitIndexRecordList" resultType="com.bonade.visitor.domain.dto.VisitIndexRecordDto">
+        SELECT
+            a.enterprise_name AS enterpriseName,
+            a.registration AS registration,
+            a.internal_staff_user_name AS internalStaffUserName,
+            a.visit_cause AS visitCause,
+            "" AS visitCauseName,
+            a.appointment_start_time AS appointmentStartTime,
+            a.first_check_in_time AS checkInTime,
+            c.operation_time AS checkOutTime,
+            e.state AS approvalState,
+            "" AS approvalStateName,
+            (CASE WHEN a.visit_status = 10 THEN 1 ELSE 0 END) AS abnormalState,
+            f.user_name AS approvalPerson
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        LEFT JOIN (SELECT d.* FROM vms_visit_record_behavior_trace d WHERE d.visit_status = 9) c ON a.id = c.visit_record_id
+        LEFT JOIN vms_approval e ON e.visit_record_id = a.id
+        LEFT JOIN (SELECT g.* from vms_approval_detail g WHERE g.sort = 0) f ON e.id = f.approval_id
+        WHERE a.visitor_id = #{visitorId}
+    </select>
+
+    <select id="verifyVisitorDetail" resultType="com.bonade.visitor.domain.dto.VerifyVisitorDetailDto">
+        SELECT
+            a.id AS id,
+            b.company_name AS companyName,
+            a.enterprise_id AS enterpriseId,
+            a.enterprise_name AS enterpriseName,
+            b.name AS name,
+            a.visit_cause AS visitCause,
+            "" AS visitCauseName,
+            a.appointment_start_time AS appointmentStartTime,
+            a.appointment_end_time AS appointmentEndTime
+        FROM vms_visit_record a
+        LEFT JOIN vms_visitor b ON a.visitor_id = b.id
+        WHERE a.id = #{id}
+    </select>
+
+    <select id="getVerifyVisitorApprovalDetailList" resultType="com.bonade.visitor.domain.dto.VerifyVisitorApprovalDetailDto">
+        SELECT
+            f.user_id AS userId,
+            f.user_name AS userName,
+            f.user_tel AS userTel,
+            f.organization_id AS organizationId,
+            f.sort AS sort,
+            f.type AS type,
+            f.state AS state,
+            f.approval_opinion AS approvalOpinion,
+            f.approval_time AS approvalTime
+        FROM vms_visit_record a
+        LEFT JOIN vms_approval e ON e.visit_record_id = a.id
+        LEFT JOIN vms_approval_detail f ON e.id = f.approval_id
+        WHERE a.id = #{id}
+    </select>
+
+    <select id="getVerifyVisitorBehaviorTraceDetailList" resultType="com.bonade.visitor.domain.dto.VerifyVisitorBehaviorTraceDetailDto">
+        SELECT
+            a.visit_record_id AS visitRecordId,
+            a.create_time AS createTime,
+            a.visit_status AS visitStatus,
+            "" AS visitStatusName,
+            a.operation_time AS operationTime,
+            a.pass_status AS passStatus,
+            a.opinion AS opinion,
+            a.user_name AS userName
+        FROM vms_visit_record_behavior_trace a
+        WHERE a.valid = 1
+        AND a.visit_record_id = #{visitRecordId}
+    </select>
+
+    <select id="getAbnormalByVisitorId" resultType="com.bonade.visitor.domain.dto.AbnormalDto">
+        SELECT
+            a.id AS id,
+            a.enterprise_id AS enterpriseId,
+            a.abnormal_case AS abnormalCase,
+            "" AS abnormalCaseName,
+            a.abnormal_area_id AS abnormalAreaId,
+            b.name AS abnormalAreaName,
+            a.abnormal_type AS abnormalType,
+            a.visitor_id AS visitorId
+        FROM vms_abnormal a
+        LEFT JOIN vms_area b ON a.abnormal_area_id = b.id
+        WHERE a.valid = 1
+        <if test="enterpriseId != null">
+            AND a.enterprise_id = #{enterpriseId}
+        </if>
+        <if test="visitorId != null">
+            AND a.visitor_id = #{visitorId}
+        </if>
+    </select>
+
+</mapper>

@@ -1,0 +1,31 @@
+plugins {
+    id 'java-library'
+}
+
+description '访客管理服务领域层'
+def artifactId = 'bonade-visitor-domain'
+
+install {
+    repositories.mavenInstaller {
+        pom.version = "$project.version"
+        pom.artifactId = "$artifactId"
+        pom.groupId = "$project.group"
+    }
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: "http://60.169.170.69:8081/repository/maven-snapshots/") {
+                authentication(userName: "dev", password: "8D22185")
+            }
+            pom.version = "$project.version"
+            pom.artifactId = "$artifactId"
+            pom.groupId = "$project.group"
+        }
+    }
+}
+
+dependencies {
+    api group: 'org.mathcat', name: 'spin-common-spring-boot-starter', version: commonStarterVersion
+}

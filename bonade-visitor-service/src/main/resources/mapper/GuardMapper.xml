@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bonade.visitor.mapper.GuardMapper">
+
+    <select id="getPage" resultType="com.bonade.visitor.domain.vo.GuardOutVo">
+        SELECT
+            t.`name`,
+            t.id,
+            t.create_time createTime,
+            t.area_id areaid,
+            t.create_username createUsername,
+            t.enterprise_id enterpriseId,
+            t.sn,
+            t.`status`,
+            a.`name` areaName,
+            t.guard_type guardType,
+            t.create_time createTime,
+            t.ascription_type ascriptionType,
+            r.`name` roleName,
+            t.user_id userId,
+            t.user_name userName
+        FROM
+        vms_guard t
+        LEFT JOIN vms_area a ON t.area_id = a.id
+        LEFT JOIN vms_access_rule r ON r.id = t.role_id
+        WHERE t.valid = 1
+        AND t.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.guardType != null">
+            AND t.`guard_type` = #{vo.guardType}
+        </if>
+        <if test="vo.ascriptionType != null">
+            AND t.`ascription_type` = #{vo.ascriptionType}
+        </if>
+        <if test="vo.areaType != null">
+            AND t.`area_type` = #{vo.areaType}
+        </if>
+    </select>
+
+    <select id="getGardenGuardPage" resultType="com.bonade.visitor.domain.vo.GuardOutVo">
+        SELECT
+            t.`name`,
+            t.id,
+            t.create_time createTime,
+            t.area_id areaid,
+            t.create_username createUsername,
+            t.enterprise_id enterpriseId,
+            t.sn,
+            t.`status`,
+            a.`name` areaName,
+            t.guard_type guardType,
+            t.create_time createTime,
+            t.ascription_type ascriptionType,
+            r.`name` roleName,
+            t.user_id userId,
+            t.user_name userName
+        FROM
+        vms_guard t
+        LEFT JOIN vms_garden_area a ON t.area_id = a.id
+        LEFT JOIN vms_access_rule r ON r.id = t.role_id
+        WHERE t.valid = 1
+        AND t.enterprise_id = #{vo.enterpriseId}
+        <if test="vo.guardType != null">
+            AND t.`guard_type` = #{vo.guardType}
+        </if>
+        <if test="vo.ascriptionType != null">
+            AND t.`ascription_type` = #{vo.ascriptionType}
+        </if>
+        <if test="vo.areaType != null">
+            AND t.`area_type` = #{vo.areaType}
+        </if>
+    </select>
+
+
+</mapper>
